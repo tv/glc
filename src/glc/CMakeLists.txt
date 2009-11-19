@@ -47,6 +47,7 @@ SET(CORE_HDR core/color.h
 SET(CORE_SRC core/color.c
 	     core/copy.c
 	     core/file.c
+	     core/stream.c
 	     core/info.c
 	     core/pack.c
 	     core/rgb.c
