@@ -38,7 +38,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <netinet/in.h>
 
 #include <glc/core/tracker.h>
 
@@ -138,7 +137,7 @@ int stream_open_target(stream_t stream, const char *host, int port)
 	
 	stream->addr.sin_family = AF_INET;
 	stream->addr.sin_port = htons(port);
-	inet_aton(host, &stream->addr.sin_addr.s_addr);
+	inet_aton(host, &stream->addr.s_addr);
 	memset(stream->addr.sin_zero,'\0',sizeof stream->addr.sin_zero);
 	
 	connect(sockfd, (struct sockaddr*)stream->addr, sizeof(stream->addr));
