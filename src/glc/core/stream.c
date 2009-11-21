@@ -25,6 +25,7 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 
+#include <socket.h>
 #include <net/inet.h> 
 
 #include <glc/common/glc.h>
