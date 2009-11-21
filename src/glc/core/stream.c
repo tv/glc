@@ -25,6 +25,8 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 
+#include <net/inet.h> 
+
 #include <glc/common/glc.h>
 #include <glc/common/state.h>
 #include <glc/common/core.h>
@@ -146,7 +148,7 @@ int stream_set_target(stream_t stream, int sockfd)
 	if (stream->sockfd >= 0)
 		return EBUSY;
 
-	if (flock(fd, LOCK_EX | LOCK_NB) == -1) {
+	if (flock(sockfd, LOCK_EX | LOCK_NB) == -1) {
 		glc_log(stream->glc, GLC_ERROR, "stream",
 			 "can't lock stream: %s (%d)", strerror(errno), errno);
 		return errno;
@@ -213,8 +215,7 @@ int stream_write_message(stream_t stream, glc_message_header_t *header, void *me
 
 	if (send(stream->sockfd, &glc_size, sizeof(glc_size_t), 0) != sizeof(glc_size_t))
 		goto err;
-	if (send(stream->sockfd, header, sizeof(glc_message_header_t, 0))
-		!= sizeof(glc_message_header_t))
+	if (send(stream->sockfd, header, sizeof(glc_message_header_t), 0) != sizeof(glc_message_header_t))
 		goto err;
 	if (message_size > 0) {
 		if (send(stream->sockfd, message, message_size, 0) != message_size)

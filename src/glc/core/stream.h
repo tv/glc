@@ -1,6 +1,6 @@
 /**
- * \file glc/core/file.h
- * \brief file io
+ * \file glc/core/stream.h
+ * \brief stream io
  * \author Pyry Haulos <pyry.haulos@gmail.com>
  * \date 2007-2008
  * For conditions of distribution and use, see copyright notice in glc.h
@@ -9,7 +9,7 @@
 /**
  * \addtogroup core
  *  \{
- * \defgroup file file io
+ * \defgroup stream stream io
  *  \{
  */
 
@@ -24,7 +24,7 @@ extern "C" {
 #endif
 
 /**
- * \brief file object
+ * \brief stream object
  */
 typedef struct stream_s* stream_t;
 
