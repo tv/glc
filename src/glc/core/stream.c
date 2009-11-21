@@ -32,6 +32,14 @@
 #include <glc/common/thread.h>
 #include <glc/common/util.h>
 
+#include <stdio.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <netinet/in.h>
+
 #include <glc/core/tracker.h>
 
 #include "stream.h"
