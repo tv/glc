@@ -7,7 +7,7 @@
  */
 
 /**
- * \addtogroup file
+ * \addtogroup stream
  *  \{
  */
 
@@ -43,16 +43,16 @@
 #define STREAM_INFO_READ    0x10
 #define STREAM_INFO_VALID   0x20
 
-#define PORT 13373
-#define DEST_ADDR "127.0.0.1"
+// #define PORT 13373
+// #define DEST_ADDR "127.0.0.1"
 
 struct stream_s {
 	glc_t *glc;
 	glc_flags_t flags;
 	glc_thread_t thread;
-	int fd;
+	int sockfd;
 	int sync;
-	struct sockaddr_in sendaddr;
+	struct sockaddr_in addr;
 	u_int32_t stream_version;
 	callback_request_func_t callback;
 	tracker_t state_tracker;
@@ -69,7 +69,7 @@ int stream_init(stream_t *stream, glc_t *glc)
 	memset(*stream, 0, sizeof(struct stream_s));
 
 	(*stream)->glc = glc;
-	(*stream)->fd = -1;
+	(*stream)->sockfd = -1;
 	(*stream)->sync = 0;
 
 	(*stream)->thread.flags = GLC_THREAD_READ;
@@ -128,12 +128,12 @@ int stream_open_target(stream_t stream, const char *host, int port)
 	// 	return errno;
 	// }
 	
-	sendaddr.sin_family = AF_INET;
-	sendaddr.sin_port = htons(port);
-	inet_aton(host, &sendaddr.sin_addr.s_addr);
-	memset(sendaddr.sin_zero,'\0',sizeof sendaddr.sin_zero);
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(port);
+	inet_aton(host, &addr.sin_addr.s_addr);
+	memset(addr.sin_zero,'\0',sizeof addr.sin_zero);
 	
-	connect(sockfd, (struct sockaddr*)myaddr, sizeof(myaddr));
+	connect(sockfd, (struct sockaddr*)addr, sizeof(addr));
 	
 	if ((ret = stream_set_target(stream, sockfd)))
 		close(sockfd);
@@ -157,14 +157,14 @@ int stream_set_target(stream_t stream, int sockfd)
 	//ftruncate(stream->sockfd, 0);
 
 	stream->sockfd = sockfd;
-	stream->flags |= stream_WRITING;
+	stream->flags |= STREAM_WRITING;
 	return 0;
 }
 
 int stream_close_target(stream_t stream)
 {
-	if ((stream->sockfd < 0) | (stream->flags & stream_RUNNING) |
-	    (!(stream->flags & stream_WRITING)))
+	if ((stream->sockfd < 0) | (stream->flags & STREAM_RUNNING) |
+	    (!(stream->flags & STREAM_WRITING)))
 		return EAGAIN;
 
 	/* try to remove lock */
@@ -179,7 +179,7 @@ int stream_close_target(stream_t stream)
 			 strerror(errno), errno);
 
 	stream->sockfd = -1;
-	stream->flags &= ~(stream_RUNNING | stream_WRITING | stream_INFO_WRITTEN);
+	stream->flags &= ~(STREAM_RUNNING | STREAM_WRITING | STREAM_INFO_WRITTEN);
 
 	return 0;
 }
@@ -187,18 +187,18 @@ int stream_close_target(stream_t stream)
 int stream_write_info(stream_t stream, glc_stream_info_t *info,
 		    const char *info_name, const char *info_date)
 {
-	if ((stream->sockfd < 0) | (stream->flags & stream_RUNNING) |
-	    (!(stream->flags & stream_WRITING)))
+	if ((stream->sockfd < 0) | (stream->flags & STREAM_RUNNING) |
+	    (!(stream->flags & STREAM_WRITING)))
 		return EAGAIN;
 
-	if (send(stream->sockfd, info, sizeof(glc_stream_info_t)) != sizeof(glc_stream_info_t))
+	if (send(stream->sockfd, info, sizeof(glc_stream_info_t),0 ) != sizeof(glc_stream_info_t))
 		goto err;
-	if (send(stream->sockfd, info_name, info->name_size) != info->name_size)
+	if (send(stream->sockfd, info_name, info->name_size, 0) != info->name_size)
 		goto err;
-	if (send(stream->sockfd, info_date, info->date_size) != info->date_size)
+	if (send(stream->sockfd, info_date, info->date_size, 0) != info->date_size)
 		goto err;
 
-	stream->flags |= stream_INFO_WRITTEN;
+	stream->flags |= STREAM_INFO_WRITTEN;
 	return 0;
 err:
 	glc_log(stream->glc, GLC_ERROR, "stream",
@@ -211,13 +211,13 @@ int stream_write_message(stream_t stream, glc_message_header_t *header, void *me
 {
 	glc_size_t glc_size = (glc_size_t) message_size;
 
-	if (send(stream->sockfd, &glc_size, sizeof(glc_size_t)) != sizeof(glc_size_t))
+	if (send(stream->sockfd, &glc_size, sizeof(glc_size_t), 0) != sizeof(glc_size_t))
 		goto err;
-	if (send(stream->sockfd, header, sizeof(glc_message_header_t))
+	if (send(stream->sockfd, header, sizeof(glc_message_header_t, 0))
 		!= sizeof(glc_message_header_t))
 		goto err;
 	if (message_size > 0) {
-		if (write(stream->sockfd, message, message_size) != message_size)
+		if (send(stream->sockfd, message, message_size, 0) != message_size)
 			goto err;
 	}
 
@@ -232,8 +232,8 @@ int stream_write_eof(stream_t stream)
 	glc_message_header_t hdr;
 	hdr.type = GLC_MESSAGE_CLOSE;
 
-	if ((stream->sockfd < 0) | (stream->flags & stream_RUNNING) |
-	    (!(stream->flags & stream_WRITING))) {
+	if ((stream->sockfd < 0) | (stream->flags & STREAM_RUNNING) |
+	    (!(stream->flags & STREAM_WRITING))) {
 	    ret = EAGAIN;
 	    goto err;
 	}
@@ -258,8 +258,8 @@ int stream_write_state_callback(glc_message_header_t *header, void *message, siz
 int stream_write_state(stream_t stream)
 {
 	int ret;
-	if ((stream->sockfd < 0) | (stream->flags & stream_RUNNING) |
-	    (!(stream->flags & stream_WRITING))) {
+	if ((stream->sockfd < 0) | (stream->flags & STREAM_RUNNING) |
+	    (!(stream->flags & STREAM_WRITING))) {
 	    ret = EAGAIN;
 	    goto err;
 	}
@@ -278,28 +278,28 @@ err:
 int stream_write_process_start(stream_t stream, ps_buffer_t *from)
 {
 	int ret;
-	if ((stream->sockfd < 0) | (stream->flags & stream_RUNNING) |
-	    (!(stream->flags & stream_WRITING)) |
-	    (!(stream->flags & stream_INFO_WRITTEN)))
+	if ((stream->sockfd < 0) | (stream->flags & STREAM_RUNNING) |
+	    (!(stream->flags & STREAM_WRITING)) |
+	    (!(stream->flags & STREAM_INFO_WRITTEN)))
 		return EAGAIN;
 
 	if ((ret = glc_thread_create(stream->glc, &stream->thread, from, NULL)))
 		return ret;
 	/** \todo cancel buffer if this fails? */
-	stream->flags |= stream_RUNNING;
+	stream->flags |= STREAM_RUNNING;
 
 	return 0;
 }
 
 int stream_write_process_wait(stream_t stream)
 {
-	if ((stream->sockfd < 0) | (!(stream->flags & stream_RUNNING)) |
-	    (!(stream->flags & stream_WRITING)) |
-	    (!(stream->flags & stream_INFO_WRITTEN)))
+	if ((stream->sockfd < 0) | (!(stream->flags & STREAM_RUNNING)) |
+	    (!(stream->flags & STREAM_WRITING)) |
+	    (!(stream->flags & STREAM_INFO_WRITTEN)))
 		return EAGAIN;
 
 	glc_thread_wait(&stream->thread);
-	stream->flags &= ~(stream_RUNNING | stream_INFO_WRITTEN);
+	stream->flags &= ~(STREAM_RUNNING | STREAM_INFO_WRITTEN);
 
 	return 0;
 }
@@ -325,11 +325,11 @@ int stream_read_callback(glc_thread_state_t *state)
 	if (state->header.type == GLC_CALLBACK_REQUEST) {
 		/* callback request messages are never written to disk */
 		if (stream->callback != NULL) {
-			/* callbacks may manipulate target file so remove stream_RUNNING flag */
-			stream->flags &= ~stream_RUNNING;
+			/* callbacks may manipulate target file so remove STREAM_RUNNING flag */
+			stream->flags &= ~STREAM_RUNNING;
 			callback_req = (glc_callback_request_t *) state->read_data;
 			stream->callback(callback_req->arg);
-			stream->flags |= stream_RUNNING;
+			stream->flags |= STREAM_RUNNING;
 		}
 	} else if (state->header.type == GLC_MESSAGE_CONTAINER) {
 		container = (glc_container_message_header_t *) state->read_data;
