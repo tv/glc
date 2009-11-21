@@ -138,7 +138,7 @@ int stream_open_target(stream_t stream, const char *host, int port)
 	stream->addr.sin_family = AF_INET;
 	stream->addr.sin_port = htons(port);
 	inet_aton(host, &stream->addr.s_addr);
-	memset(stream->addr.sin_zero,'\0',sizeof stream->addr.sin_zero);
+	memset(stream->addr.sin_zero,'\0',sizeof(stream->addr.sin_zero));
 	
 	connect(sockfd, (struct sockaddr*)stream->addr, sizeof(stream->addr));
 	
