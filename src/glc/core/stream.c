@@ -25,9 +25,6 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 
-#include <socket.h>
-#include <net/inet.h> 
-
 #include <glc/common/glc.h>
 #include <glc/common/state.h>
 #include <glc/common/core.h>
@@ -131,12 +128,12 @@ int stream_open_target(stream_t stream, const char *host, int port)
 	// 	return errno;
 	// }
 	
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(port);
-	inet_aton(host, &addr.sin_addr.s_addr);
-	memset(addr.sin_zero,'\0',sizeof addr.sin_zero);
+	stream->addr.sin_family = AF_INET;
+	stream->addr.sin_port = htons(port);
+	inet_aton(host, &stream->addr.sin_addr.s_addr);
+	memset(stream->addr.sin_zero,'\0',sizeof stream->addr.sin_zero);
 	
-	connect(sockfd, (struct sockaddr*)addr, sizeof(addr));
+	connect(sockfd, (struct sockaddr*)stream->addr, sizeof(stream->addr));
 	
 	if ((ret = stream_set_target(stream, sockfd)))
 		close(sockfd);
