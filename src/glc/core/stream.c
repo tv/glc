@@ -111,13 +111,13 @@ int stream_set_callback(stream_t stream, callback_request_func_t callback)
 
 int stream_open_target(stream_t stream, const char *host, int port)
 {
-	int sockfd, ret = 0;
+	int sockfd=0, ret = 0;
 	if (stream->sockfd >= 0)
 		return EBUSY;
 
 	glc_log(stream->glc, GLC_INFORMATION, "stream",
-		 "opening %s for writing stream (%s)",
-		 host,
+		 "opening %s:%d for writing stream (%s)",
+		 host, port,
 		 stream->sync ? "sync" : "no sync");
 
 	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -127,21 +127,21 @@ int stream_open_target(stream_t stream, const char *host, int port)
 			host, strerror(errno), errno);
 		return errno;
 	}
-	
+
 	// if((setsockopt(sockfd,SOL_SOCKET,SO_BROADCAST, &broadcast,sizeof broadcast)) == -1)
 	// {
 	// 	glc_log(stream->glc, GLC_ERROR, "stream", "can't open %s: %s (%d)",
 	// 		filename, strerror(errno), errno);
 	// 	return errno;
 	// }
-	
+
 	stream->addr.sin_family = AF_INET;
 	stream->addr.sin_port = htons(port);
-	inet_aton(host, &stream->addr.s_addr);
+	inet_aton(host, &stream->addr.sin_addr);
 	memset(stream->addr.sin_zero,'\0',sizeof(stream->addr.sin_zero));
-	
-	connect(sockfd, (struct sockaddr*)stream->addr, sizeof(stream->addr));
-	
+
+	connect(sockfd, (struct sockaddr*)&stream->addr, sizeof(stream->addr));
+
 	if ((ret = stream_set_target(stream, sockfd)))
 		close(sockfd);
 

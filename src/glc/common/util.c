@@ -279,4 +279,12 @@ char *glc_util_format_filename(const char *fmt, unsigned int capture)
 	return filename;
 }
 
+void glc_util_format_stream(const char *fmt, char * hostname, unsigned int * port)
+{
+    *port = 0;
+    /* begin from udp:// part */
+    sscanf(strstr(fmt, "udp://"), "udp://%99[^:]:%99d", hostname, port);
+    printf("sscanf: %s:%d", hostname, *port);
+    return hostname;
+}
 /**  \} */

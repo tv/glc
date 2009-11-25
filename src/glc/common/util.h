@@ -107,6 +107,15 @@ __PUBLIC char *glc_util_str_replace(const char *str, const char *find, const cha
  */
 __PUBLIC char *glc_util_format_filename(const char *fmt, unsigned int capture);
 
+/**
+ * \brief create ip and port from output-options
+ *
+ * \param format format string
+ * \param port port to send to
+ * \param hostname string for hostname
+ */
+__PUBLIC void glc_util_format_stream(const char *fmt, char * hostname, unsigned int * port);
+
 #ifdef __cplusplus
 }
 #endif
