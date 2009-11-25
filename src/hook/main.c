@@ -30,6 +30,7 @@
 #include <glc/common/state.h>
 #include <glc/core/pack.h>
 #include <glc/core/file.h>
+#include <glc/core/stream.h>
 
 #include "lib.h"
 
@@ -50,11 +51,15 @@ struct main_private_s {
 	size_t uncompressed_size, compressed_size;
 
 	file_t file;
+	stream_t stream;
 	pack_t pack;
 
 	unsigned int capture;
 	const char *stream_file_fmt;
 	char *stream_file;
+
+	char *stream_host;
+	int   stream_port;
 
 	int sighandler;
 	void (*sigint_handler)(int);
@@ -91,6 +96,7 @@ void init_glc()
 	mpriv.stop_time = 0;
 	mpriv.stream_file = NULL;
 	mpriv.stream_file_fmt = "%app%-%pid%-%capture%.glc";
+	mpriv.stream_host = NULL;
 
 	if ((ret = pthread_mutex_lock(&lib.init_lock)))
 		goto err;
@@ -187,15 +193,31 @@ int open_stream()
 	int ret;
 
 	glc_util_info_create(&mpriv.glc, &stream_info, &info_name, &info_date);
-	mpriv.stream_file = glc_util_format_filename(mpriv.stream_file_fmt, mpriv.capture);
 
-	if ((ret = file_set_sync(mpriv.file, (mpriv.flags & MAIN_SYNC) ? 1 : 0)))
-		return ret;
-	if ((ret = file_open_target(mpriv.file, mpriv.stream_file)))
-		return ret;
-	if ((ret = file_write_info(mpriv.file, stream_info,
-				   info_name, info_date)))
-		return ret;
+	if(strstr(mpriv.stream_file_fmt, "udp://"))
+	{
+	    mpriv.stream_host = malloc(15*sizeof(char));
+
+        glc_util_format_stream(mpriv.stream_file_fmt, mpriv.stream_host, &mpriv.stream_port);
+        printf("\n--> %s\n\n",mpriv.stream_host);
+
+        if ((ret = stream_set_sync(mpriv.stream, (mpriv.flags & MAIN_SYNC) ? 1 : 0)))
+            return ret;
+        if ((ret = stream_open_target(mpriv.stream, mpriv.stream_host, mpriv.stream_port)))
+            return ret;
+        if ((ret = stream_write_info(mpriv.stream, stream_info, info_name, info_date)))
+            return ret;
+
+	} else {
+        mpriv.stream_file = glc_util_format_filename(mpriv.stream_file_fmt, mpriv.capture);
+
+        if ((ret = file_set_sync(mpriv.file, (mpriv.flags & MAIN_SYNC) ? 1 : 0)))
+            return ret;
+        if ((ret = file_open_target(mpriv.file, mpriv.stream_file)))
+            return ret;
+        if ((ret = file_write_info(mpriv.file, stream_info, info_name, info_date)))
+            return ret;
+	}
 	free(stream_info);
 	free(info_name);
 	free(info_date);
@@ -319,18 +341,35 @@ int start_glc()
 
 	glc_log(&mpriv.glc, GLC_INFORMATION, "main", "starting glc");
 
-	/* initialize file & write stream info */
-	if ((ret = file_init(&mpriv.file, &mpriv.glc)))
-		return ret;
-	/* NOTE at the moment only reload is used as callback */
-	if ((ret = file_set_callback(mpriv.file, &reload_stream_callback)))
-		return ret;
+    if(strstr(mpriv.stream_file_fmt, "udp://"))
+	{
+	    if ((ret = stream_init(&mpriv.stream, &mpriv.glc)))
+            return ret;
+        /* NOTE at the moment only reload is used as callback */
+        if ((ret = stream_set_callback(mpriv.stream, &reload_stream_callback)))
+            return ret;
+	}else {
+        /* initialize file & write stream info */
+        if ((ret = file_init(&mpriv.file, &mpriv.glc)))
+            return ret;
+        /* NOTE at the moment only reload is used as callback */
+        if ((ret = file_set_callback(mpriv.file, &reload_stream_callback)))
+            return ret;
+	}
+
+
 	if ((ret = open_stream()))
 		return ret;
 
 	if (!(mpriv.flags & MAIN_COMPRESS_NONE)) {
-		if ((ret = file_write_process_start(mpriv.file, mpriv.compressed)))
-			return ret;
+	    if(strstr(mpriv.stream_file_fmt, "udp://"))
+	    {
+            if ((ret = stream_write_process_start(mpriv.stream, mpriv.compressed)))
+                return ret;
+	    } else {
+            if ((ret = file_write_process_start(mpriv.file, mpriv.compressed)))
+                return ret;
+	    }
 
 		if ((ret = pack_init(&mpriv.pack, &mpriv.glc)))
 			return ret;
@@ -345,9 +384,15 @@ int start_glc()
 		if ((ret = pack_process_start(mpriv.pack, mpriv.uncompressed, mpriv.compressed)))
 			return ret;
 	} else {
-		glc_log(&mpriv.glc, GLC_WARNING, "main", "compression disabled");
-		if ((ret = file_write_process_start(mpriv.file, mpriv.uncompressed)))
-			return ret;
+	    glc_log(&mpriv.glc, GLC_WARNING, "main", "compression disabled");
+	    if(strstr(mpriv.stream_file_fmt, "udp://"))
+	    {
+            if ((ret = stream_write_process_start(mpriv.stream, mpriv.uncompressed)))
+                return ret;
+	    } else {
+            if ((ret = file_write_process_start(mpriv.file, mpriv.uncompressed)))
+                return ret;
+	    }
 	}
 
 	if ((ret = alsa_start(mpriv.uncompressed)))

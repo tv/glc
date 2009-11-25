@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
 	return EXIT_SUCCESS;
 usage:
 	printf("%s [capture option]... [application] [application argument]...\n", argv[0]);
-	printf("  -o, --out=FILE             write to FILE\n"
+	printf("  -o, --out=FILE             write to FILE or udp-stream\n"
 	       "                               following tags are available:\n"
 	       "                                 %%app%%:     application name\n"
 	       "                                 %%pid%%:     process ID\n"
@@ -151,6 +151,7 @@ usage:
 	       "                                 %%min%%:     2-digit minute\n"
 	       "                                 %%sec%%:     2-digit second\n"
 	       "                               default value is %%app%%-%%pid%%-%%capture%%.glc\n"
+	       "                               for streaming, use udp://<ip>:port\n"
 	       "  -f, --fps=FPS              capture at FPS, default value is 30\n"
 	       "  -r, --resize=FACTOR        resize pictures with scale factor FACTOR\n"
 	       "  -c, --crop=WxH+X+Y         capture only [width]x[height][+[x][+[y]]]\n"
@@ -209,10 +210,10 @@ int env_append(const char *env, const char *val, char separator)
 	if (old_env != NULL) {
 		env_len = strlen(old_env) + strlen(val) + 2;
 		new_env = malloc(env_len);
-		
+
 		memcpy(new_env, old_env, strlen(old_env));
 		memcpy(&new_env[strlen(old_env) + 1], val, strlen(val));
-		
+
 		new_env[strlen(old_env)] = separator;
 		new_env[env_len - 1] = '\0';
 	} else {
